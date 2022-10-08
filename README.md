@@ -3,6 +3,5 @@ For my first freelance gig, I didn't setup automatic thumbnails on Firebase, whe
 
 I used the gcloud console to download all the images into a local folder, and created this little Python program to do the magic.
 
-It's a very simple program. It uses ImageMagick to create the thumbnails. Most of the parameters are hardcoded, so use with care. 
+It's a very simple program. It uses the Pillow library to create the thumbnails. Most of the parameters are hardcoded, so use with care. 
 
-This program was probably completely unneccesary. I'm sure you can do batch commands with ImageMagick, but it was a good way to sharpen up those Python skills.

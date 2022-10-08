@@ -4,10 +4,13 @@ import sys
 from subprocess import run
 from pathlib import Path
 from re import compile
+from PIL import Image
 
-THUMBNAIL_SUFFIX = "_400x200"
-THUMBNAIL_WIDTH = 400
-THUMBNAIL_HEIGHT = 200
+THUMBNAIL_SUFFIX = "_1280x720"
+THUMBNAIL_WIDTH = 1280
+THUMBNAIL_HEIGHT = 720
+NEW_DIRECTORY = f"thumbnail{THUMBNAIL_SUFFIX}"
+
 
 def build_sort_machine(discard_pile: list[Path], work_queue: list[Path], options):
     """
@@ -32,6 +35,7 @@ def build_sort_machine(discard_pile: list[Path], work_queue: list[Path], options
 
     return sort
 
+
 def generate_file_paths(file: Path, target_dir: Path):
     """
     Takes the `Path` object of the current file and target dir. Appends `THUMBNAIL_SUFFIX` to end of new file.
@@ -42,20 +46,26 @@ def generate_file_paths(file: Path, target_dir: Path):
     file_suffix = file.suffix
     file_path = str(file.resolve())
     target_dir_path = str(target_dir.resolve())
-    new_file_path = f"{target_dir_path}/{file_stem}{THUMBNAIL_SUFFIX}{file_suffix}"
+    new_file_path = f"{target_dir_path}/{file_stem}{THUMBNAIL_SUFFIX}.jpeg"
 
     return (file_path, new_file_path)
+
 
 def reduce_image(file: Path, current_path, target_path):
     """
     Uses `run()` from `subprocess` module to execute the `convert` command from ImageMagick.
     """
     try:
-        run(["convert", current_path, "-thumbnail", f"{str(THUMBNAIL_WIDTH)}x{str(THUMBNAIL_HEIGHT)}>", target_path])
-    except:
-        print("Unable to convert file.")
-        print(file.name)
+        with Image.open(current_path) as image:
 
+            # RGBA mode can't be converted to JPEG, so I first had to convert it to RGB
+            if file.suffix == ".png":
+                image = image.convert("RGB")
+
+            image.thumbnail((THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT))
+            image.save(target_path, "JPEG")
+    except OSError:
+        print("Can't create thumbnail for ", file.name)
 
 def build_regexp_tester(regexp):
     def regexp_test_file(file):
@@ -81,17 +91,17 @@ def main(argv):
         print("Path provided is not a directory.")
         quit()
 
-
-    # discard_parameters
+    # discard_parameters - think about making these dynanic.
     param1 = build_regexp_tester(compile(r"_400x200\..*"))
-    param2 = lambda file : file.suffix.lower() not in [".jpeg", ".png", ".jpg"]
+    def param2(file): return file.suffix.lower() not in [
+        ".jpeg", ".png", ".jpg"]
 
     sort_options = {
-            "discard_parameters": [param1, param2]
-            }
+        "discard_parameters": [param1, param2]
+    }
 
     discard_pile: list[Path] = []
-    work_queue: list[Path]  = []
+    work_queue: list[Path] = []
 
     sort_file = build_sort_machine(discard_pile, work_queue, sort_options)
 
@@ -101,8 +111,8 @@ def main(argv):
             sort_file(file)
 
     # Create a dir inside the image folder for storing thumbnails.
-    target_dir = dir.joinpath("thumbnails")
-    target_dir.mkdir()
+    target_dir = dir.joinpath(NEW_DIRECTORY)
+    target_dir.mkdir(exist_ok=True)
 
     # Iterate over work_queue and reduce images.
     for file in work_queue:
@@ -114,5 +124,6 @@ def main(argv):
 
     print("Conversion complete.")
     print("You saved " + str(round(bytes_saved/1e+6)) + " MB today.")
+
 
 main(sys.argv[1:])
